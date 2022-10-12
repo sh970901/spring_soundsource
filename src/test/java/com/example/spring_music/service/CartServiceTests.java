@@ -11,6 +11,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.annotation.Rollback;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -55,6 +56,7 @@ public class CartServiceTests {
 
     @Test
     @DisplayName("장바구니에서 제거")
+    @Rollback(value = false)
     void t2() {
         Member buyer1 = memberRepository.findByUsername("user1").get();
         Member buyer2 = memberRepository.findByUsername("user2").get();
