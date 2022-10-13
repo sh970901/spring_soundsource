@@ -3,8 +3,10 @@ package com.example.spring_music.app.order.controller;
 import com.example.spring_music.app.member.entity.Member;
 import com.example.spring_music.app.member.service.MemberService;
 import com.example.spring_music.app.order.entity.Order;
+import com.example.spring_music.app.order.exception.ActorCanNotPayOrderException;
 import com.example.spring_music.app.order.exception.ActorCanNotSeeOrderException;
 import com.example.spring_music.app.order.exception.OrderIdNotMatchedException;
+import com.example.spring_music.app.order.exception.OrderNotEnoughRestCashException;
 import com.example.spring_music.app.order.service.OrderService;
 import com.example.spring_music.app.security.dto.MemberContext;
 import com.example.spring_music.util.Ut;
@@ -17,10 +19,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.ResponseErrorHandler;
 import org.springframework.web.client.RestTemplate;
 
@@ -38,6 +37,23 @@ public class OrderController {
     private final ObjectMapper objectMapper;
     private final MemberService memberService;
 
+    @PostMapping("/{id}/payByRestCashOnly")
+    @PreAuthorize("isAuthenticated()")
+    public String payByRestCashOnly(@AuthenticationPrincipal MemberContext memberContext, @PathVariable long id) {
+        Order order = orderService.findForPrintById(id).get();
+
+        Member actor = memberContext.getMember();
+
+        long restCash = memberService.getRestCash(actor);
+
+        if (orderService.actorCanPayment(actor, order) == false) {
+            throw new ActorCanNotPayOrderException();
+        }
+
+        orderService.payByRestCashOnly(order);
+
+        return "redirect:/order/%d?msg=%s".formatted(order.getId(), Ut.url.encode("예치금으로 결제했습니다."));
+    }
     @GetMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
     public String showDetail(@AuthenticationPrincipal MemberContext memberContext, @PathVariable long id, Model model) {
@@ -79,14 +95,15 @@ public class OrderController {
             @RequestParam String paymentKey,
             @RequestParam String orderId,
             @RequestParam Long amount,
-            Model model
+            Model model,
+            @AuthenticationPrincipal MemberContext memberContext
     ) throws Exception {
 
         Order order = orderService.findForPrintById(id).get();
 
         long orderIdInputed = Long.parseLong(orderId.split("__")[1]);
 
-        if ( id != orderIdInputed ) {
+        if (id != orderIdInputed) {
             throw new OrderIdNotMatchedException();
         }
 
@@ -97,7 +114,15 @@ public class OrderController {
 
         Map<String, String> payloadMap = new HashMap<>();
         payloadMap.put("orderId", orderId);
-        payloadMap.put("amount", String.valueOf(order.calculatePayPrice()));
+        payloadMap.put("amount", String.valueOf(amount));
+
+        Member actor = memberContext.getMember();
+        long restCash = memberService.getRestCash(actor);
+        long payPriceRestCash = order.calculatePayPrice() - amount;
+
+        if (payPriceRestCash > restCash) {
+            throw new OrderNotEnoughRestCashException();
+        }
 
         HttpEntity<String> request = new HttpEntity<>(objectMapper.writeValueAsString(payloadMap), headers);
 
@@ -106,7 +131,7 @@ public class OrderController {
 
         if (responseEntity.getStatusCode() == HttpStatus.OK) {
 
-            orderService.payByTossPayments(order);
+            orderService.payByTossPayments(order, payPriceRestCash);
 
             return "redirect:/order/%d?msg=%s".formatted(order.getId(), Ut.url.encode("결제가 완료되었습니다."));
         } else {
