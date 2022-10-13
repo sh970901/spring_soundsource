@@ -85,4 +85,12 @@ public class Order extends BaseEntity {
 
         this.name = name;
     }
+
+    //주문이 가능한지 체크
+    public boolean isPayable() {
+        if ( isPaid ) return false;
+        if ( isCanceled ) return false;
+
+        return true;
+    }
 }

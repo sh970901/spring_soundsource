@@ -1,6 +1,7 @@
 package com.example.spring_music.app.order.controller;
 
 import com.example.spring_music.app.member.entity.Member;
+import com.example.spring_music.app.member.service.MemberService;
 import com.example.spring_music.app.order.entity.Order;
 import com.example.spring_music.app.order.exception.ActorCanNotSeeOrderException;
 import com.example.spring_music.app.order.exception.OrderIdNotMatchedException;
@@ -33,9 +34,9 @@ import java.util.Map;
 @RequestMapping("/order")
 public class OrderController {
     private final OrderService orderService;
-
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper;
+    private final MemberService memberService;
 
     @GetMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
@@ -44,11 +45,14 @@ public class OrderController {
 
         Member actor = memberContext.getMember();
 
+        long restCash = memberService.getRestCash(actor);
+
         if (orderService.actorCanSee(actor, order) == false) {
             throw new ActorCanNotSeeOrderException();
         }
 
         model.addAttribute("order", order);
+        model.addAttribute("actorRestCash", restCash);
 
         return "order/detail";
     }
@@ -101,6 +105,7 @@ public class OrderController {
                 "https://api.tosspayments.com/v1/payments/" + paymentKey, request, JsonNode.class);
 
         if (responseEntity.getStatusCode() == HttpStatus.OK) {
+
             orderService.payByTossPayments(order);
 
             return "redirect:/order/%d?msg=%s".formatted(order.getId(), Ut.url.encode("결제가 완료되었습니다."));
