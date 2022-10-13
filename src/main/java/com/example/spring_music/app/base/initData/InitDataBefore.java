@@ -4,13 +4,31 @@ import com.example.spring_music.app.cart.entity.CartItem;
 import com.example.spring_music.app.cart.service.CartService;
 import com.example.spring_music.app.member.entity.Member;
 import com.example.spring_music.app.member.service.MemberService;
+import com.example.spring_music.app.order.entity.Order;
+import com.example.spring_music.app.order.service.OrderService;
 import com.example.spring_music.app.product.entity.Product;
 import com.example.spring_music.app.product.service.ProductService;
 import com.example.spring_music.app.song.entity.Song;
 import com.example.spring_music.app.song.service.SongService;
 
+import java.util.Arrays;
+import java.util.List;
+
 public interface InitDataBefore {
-    default void before(MemberService memberService, SongService songService, ProductService productService, CartService cartService) {
+    default void before(MemberService memberService, SongService songService, ProductService productService, CartService cartService, OrderService orderService) {
+        class Helper {
+            public Order order(Member member, List<Product> products) {
+                for (int i = 0; i < products.size(); i++) {
+                    Product product = products.get(i);
+
+                    cartService.addItem(member, product);
+                }
+
+                return orderService.createFromCart(member);
+            }
+        }
+
+        Helper helper = new Helper();
         Member member1 = memberService.join("user1", "1234", "user1@test.com");
         Member member2 = memberService.join("user2", "1234", "user2@test.com");
 
@@ -40,5 +58,33 @@ public interface InitDataBefore {
         memberService.addCash(member1, 1_000_000, "충전__무통장입금");
 
         memberService.addCash(member2, 2_000_000, "충전__무통장입금");
+
+        // 1번 주문 : 결제완료
+        Order order1 = helper.order(member1, Arrays.asList(
+                        product1,
+                        product2
+                )
+        );
+
+        int order1PayPrice = order1.calculatePayPrice();
+        orderService.payByRestCashOnly(order1);
+
+        // 2번 주문 : 결제 후 환불
+        Order order2 = helper.order(member2, Arrays.asList(
+                        product3,
+                        product4
+                )
+        );
+
+        orderService.payByRestCashOnly(order2);
+
+        orderService.refund(order2);
+
+        // 3번 주문 : 결제 전
+        Order order3 = helper.order(member2, Arrays.asList(
+                        product1,
+                        product2
+                )
+        );
     }
 }
