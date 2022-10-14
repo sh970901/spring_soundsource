@@ -1,6 +1,8 @@
 package com.example.spring_music.app.rebate.entity;
 
 import com.example.spring_music.app.base.entity.BaseEntity;
+import com.example.spring_music.app.cash.entity.CashLog;
+import com.example.spring_music.app.member.entity.Member;
 import com.example.spring_music.app.order.entity.Order;
 import com.example.spring_music.app.order.entity.OrderItem;
 import com.example.spring_music.app.product.entity.Product;
@@ -46,11 +48,31 @@ public class RebateOrderItem extends BaseEntity {
     private boolean isPaid; // 결제여부
     private LocalDateTime payDate; // 결제날짜
 
+    @ManyToOne(fetch = LAZY)
+    @ToString.Exclude
+    @JoinColumn(foreignKey = @ForeignKey(ConstraintMode.NO_CONSTRAINT))
+    private CashLog rebateCashLog; // 정산에 관련된 환급지급내역
+    private LocalDateTime rebateDate;
+
     // 상품
     private String productSubject;
 
     // 주문품목
     private LocalDateTime orderItemCreateDate;
+
+    // 구매자 회원
+    @ManyToOne(fetch = LAZY)
+    @ToString.Exclude
+    @JoinColumn(foreignKey = @ForeignKey(ConstraintMode.NO_CONSTRAINT))
+    private Member buyer;
+    private String buyerName;
+
+    // 판매자 회원
+    @ManyToOne(fetch = LAZY)
+    @ToString.Exclude
+    @JoinColumn(foreignKey = @ForeignKey(ConstraintMode.NO_CONSTRAINT))
+    private Member seller;
+    private String sellerName;
 
     public RebateOrderItem(OrderItem orderItem) {
         this.orderItem = orderItem;
@@ -70,5 +92,34 @@ public class RebateOrderItem extends BaseEntity {
 
         // 주문품목 추가데이터
         orderItemCreateDate = orderItem.getCreateDate();
+
+        // 구매자 추가데이터
+        buyer = orderItem.getOrder().getBuyer();
+        buyerName = orderItem.getOrder().getBuyer().getName();
+
+        // 판매자 추가데이터
+        seller = orderItem.getProduct().getAuthor();
+        sellerName = orderItem.getProduct().getAuthor().getName();
+    }
+
+    public int calculateRebatePrice() {
+        if (refundPrice > 0) {
+            return 0;
+        }
+
+        return payPrice - pgFee - wholesalePrice;
+    }
+
+    public boolean isRebateAvailable() {
+        if (refundPrice > 0 || rebateDate != null) {
+            return false;
+        }
+
+        return true;
+    }
+
+    public void setRebateDone(long cashLogId) {
+        rebateDate = LocalDateTime.now();
+        this.rebateCashLog = new CashLog(cashLogId);
     }
 }

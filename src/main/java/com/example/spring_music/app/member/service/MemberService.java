@@ -1,11 +1,14 @@
 package com.example.spring_music.app.member.service;
 
 
+import com.example.spring_music.app.base.dto.RsData;
 import com.example.spring_music.app.cash.entity.CashLog;
 import com.example.spring_music.app.cash.service.CashService;
 import com.example.spring_music.app.member.entity.Member;
 import com.example.spring_music.app.member.exception.AlreadyJoinException;
 import com.example.spring_music.app.member.repository.MemberRepository;
+import lombok.AllArgsConstructor;
+import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -43,18 +46,28 @@ public class MemberService {
     }
 
     @Transactional
-    public long addCash(Member member, long price, String eventType) {
+    public RsData<AddCashRsDataBody> addCash(Member member, long price, String eventType) {
         CashLog cashLog = cashService.addCash(member, price, eventType);
 
         long newRestCash = member.getRestCash() + cashLog.getPrice();
         member.setRestCash(newRestCash);
         memberRepository.save(member);
 
-        return newRestCash;
+        return RsData.of(
+                "S-1",
+                "성공",
+                new AddCashRsDataBody(cashLog, newRestCash)
+        );
+    }
+
+    @Data
+    @AllArgsConstructor
+    public static class AddCashRsDataBody {
+        CashLog cashLog;
+        long newRestCash;
     }
 
     public long getRestCash(Member member) {
-
         Member foundMember = findByUsername(member.getUsername()).get();
 
         return foundMember.getRestCash();

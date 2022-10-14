@@ -1,20 +1,24 @@
 package com.example.spring_music.app.rebate.controller;
 
+import com.example.spring_music.app.base.dto.RsData;
+import com.example.spring_music.app.rebate.entity.RebateOrderItem;
 import com.example.spring_music.app.rebate.service.RebateService;
 import com.example.spring_music.util.Ut;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.*;
 
+import javax.servlet.http.HttpServletRequest;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Controller
 @RequestMapping("/adm/rebate")
 @RequiredArgsConstructor
+@Slf4j
 public class AdmRebateController {
 
     private final RebateService rebateService;
@@ -28,8 +32,39 @@ public class AdmRebateController {
     @PreAuthorize("hasAuthority('ADMIN')")
     @ResponseBody
     public String makeData(String yearMonth) {
-        rebateService.makeDate(yearMonth);
+        RsData makeDateRsData = rebateService.makeDate(yearMonth);
 
-        return "성공";
+        String redirect = makeDateRsData.addMsgToUrl("redirect:/adm/rebate/rebateOrderItemList?yearMonth=" + yearMonth);
+
+        return redirect;
+    }
+
+    @GetMapping("/rebateOrderItemList")
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public String showRebateOrderItemList(String yearMonth, Model model) {
+        if (yearMonth == null) {
+            yearMonth = "2022-10";
+        }
+        List<RebateOrderItem> items = rebateService.findRebateOrderItemsByPayDateIn(yearMonth);
+
+        model.addAttribute("items", items);
+
+        return "adm/rebate/rebateOrderItemList";
+    }
+    @PostMapping("/rebateOne/{orderItemId}")
+    @PreAuthorize("hasAuthority('ADMIN')")
+    @ResponseBody
+    public String rebateOne(@PathVariable long orderItemId, HttpServletRequest req) {
+        RsData rebateRsData = rebateService.rebate(orderItemId);
+
+        String referer = req.getHeader("Referer");
+        log.debug("referer : " + referer);
+        String yearMonth = Ut.url.getQueryParamValue(referer, "yearMonth", "");
+
+        String redirect = "redirect:/adm/rebate/rebateOrderItemList?yearMonth=" + yearMonth;
+
+        redirect = rebateRsData.addMsgToUrl(redirect);
+
+        return redirect;
     }
 }
