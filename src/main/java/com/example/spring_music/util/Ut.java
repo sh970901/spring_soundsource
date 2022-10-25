@@ -41,6 +41,7 @@ public class Ut {
             return parse("yyyy-MM-dd HH:mm:ss.SSSSSS", dateText);
         }
     }
+
     private static ObjectMapper getObjectMapper() {
         return (ObjectMapper) AppConfig.getContext().getBean("objectMapper");
     }
@@ -117,6 +118,10 @@ public class Ut {
         public static String addQueryParam(String url, String paramName, String paramValue) {
             if (url.contains("?") == false) {
                 url += "?";
+            }
+
+            if ( url.endsWith("?") == false && url.endsWith("&") == false ) {
+                url += "&";
             }
 
             url += paramName + "=" + encode(paramValue);

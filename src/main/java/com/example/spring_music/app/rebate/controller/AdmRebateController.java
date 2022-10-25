@@ -30,7 +30,6 @@ public class AdmRebateController {
 
     @PostMapping("/makeData")
     @PreAuthorize("hasAuthority('ADMIN')")
-    @ResponseBody
     public String makeData(String yearMonth) {
         RsData makeDateRsData = rebateService.makeDate(yearMonth);
 

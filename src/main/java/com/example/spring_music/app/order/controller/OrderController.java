@@ -87,7 +87,7 @@ public class OrderController {
         });
     }
 
-    private final String SECRET_KEY = "test_sk_jkYG57Eba3GgM1wB0a53pWDOxmA1";
+    private final String SECRET_KEY = "서버 키";
 
     @RequestMapping("/{id}/success")
     public String confirmPayment(
@@ -135,6 +135,7 @@ public class OrderController {
 
             return "redirect:/order/%d?msg=%s".formatted(order.getId(), Ut.url.encode("결제가 완료되었습니다."));
         } else {
+            System.out.println();
             JsonNode failNode = responseEntity.getBody();
             model.addAttribute("message", failNode.get("message").asText());
             model.addAttribute("code", failNode.get("code").asText());
